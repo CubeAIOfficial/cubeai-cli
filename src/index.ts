@@ -5,7 +5,7 @@ import {
   type Project,
   type ProjectAgent,
 } from '@elizaos/core';
-import starterPlugin from './plugin.ts';
+import cubeaiCliPlugin from './plugin';
 
 /**
  * Represents the default character (Eliza) with her specific attributes and behaviors.
@@ -26,11 +26,13 @@ export const character: Character = {
   ],
   settings: {
     secrets: {
-      OLLAMA_API_ENDPOINT: 'http://ollama:11434/api',
-      OLLAMA_SMALL_MODEL: 'gemma3:1b',
-      OLLAMA_MEDIUM_MODEL: 'gemma3:1b',
-      OLLAMA_LARGE_MODEL: 'gemma3:1b',
-      OLLAMA_EMBEDDING_MODEL: 'nomic-embed-text'
+      OLLAMA_SMALL_MODEL: process.env.OLLAMA_SMALL_MODEL || 'gemma3:1b',
+      OLLAMA_MEDIUM_MODEL: process.env.OLLAMA_MEDIUM_MODEL || 'gemma3:1b',
+      OLLAMA_LARGE_MODEL: process.env.OLLAMA_LARGE_MODEL || 'gemma3:1b',
+      OLLAMA_EMBEDDING_MODEL: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text',
+      USE_LOCAL_AI: process.env.USE_LOCAL_AI || 'true',
+      POSTGRES_URL: process.env.POSTGRES_URL || 'postgresql://postgres:password@cubeai-cli-db:5434/cubeai-cli-db',
+      OLLAMA_API_ENDPOINT: process.env.OLLAMA_API_ENDPOINT || 'http://ollama:11434/api'
     },
   },
   system:
@@ -141,7 +143,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
-  // plugins: [starterPlugin], <-- Import custom plugins here
+  plugins: [cubeaiCliPlugin],
 };
 const project: Project = {
   agents: [projectAgent],

@@ -14,6 +14,11 @@ import {
   logger,
 } from '@elizaos/core';
 import { z } from 'zod';
+import {
+  getAuthConfig,
+  healthCheck
+} from './middleware/auth.js';
+import { AuthService } from './services/auth-service.js';
 
 /**
  * Define the configuration schema for the plugin with the following properties:
@@ -32,6 +37,11 @@ const configSchema = z.object({
       }
       return val;
     }),
+  // Auth configuration
+  OWNER_API_KEYS: z.string().optional(),
+  ADMIN_API_KEYS: z.string().optional(),
+  CUBEAI_API_ENDPOINT: z.string().url().optional(),
+  CUBEAI_INSTANCE_ID: z.string().optional(),
 });
 
 /**
@@ -158,15 +168,19 @@ export class StarterService extends Service {
 }
 
 const plugin: Plugin = {
-  name: 'starter',
-  description: 'A starter plugin for Eliza',
+  name: 'cubeai-cli',
+  description: 'Enhanced ElizaOS CLI with authentication and API integration for CUBEAI platform',
   // Set lowest priority so real models take precedence
   priority: -1000,
   config: {
     EXAMPLE_PLUGIN_VARIABLE: process.env.EXAMPLE_PLUGIN_VARIABLE,
+    OWNER_API_KEYS: process.env.OWNER_API_KEYS,
+    ADMIN_API_KEYS: process.env.ADMIN_API_KEYS,
+    CUBEAI_API_ENDPOINT: process.env.CUBEAI_API_ENDPOINT,
+    CUBEAI_INSTANCE_ID: process.env.CUBEAI_INSTANCE_ID,
   },
-  async init(config: Record<string, string>) {
-    logger.info('*** Initializing starter plugin ***');
+  async init(config: Record<string, string>, runtime: IAgentRuntime) {
+    logger.info('*** Initializing CUBEAI CLI plugin ***');
     try {
       const validatedConfig = await configSchema.parseAsync(config);
 
@@ -174,6 +188,10 @@ const plugin: Plugin = {
       for (const [key, value] of Object.entries(validatedConfig)) {
         if (value) process.env[key] = value;
       }
+
+      // Start the AuthService
+      await AuthService.start(runtime);
+      logger.info('Auth service started successfully');
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error(
@@ -205,15 +223,318 @@ const plugin: Plugin = {
     },
   },
   routes: [
+    // Public health check
+    {
+      name: 'health',
+      path: '/health',
+      type: 'GET',
+      handler: async (req: any, res: any, _runtime: IAgentRuntime) => {
+        await Promise.resolve(healthCheck(req, res));
+      },
+    },
+    // Legacy hello world route (keeping for backward compatibility)
     {
       name: 'helloworld',
       path: '/helloworld',
       type: 'GET',
       handler: async (_req: any, res: any) => {
-        // send a response
         res.json({
           message: 'Hello World!',
         });
+      },
+    },
+    // Authentication status - requires valid API key
+    {
+      name: 'auth-status',
+      path: '/api/auth/status',
+      type: 'GET',
+      handler: async (req: any, res: any, runtime: IAgentRuntime) => {
+        try {
+          // Extract API key from request
+          const authHeader = req.headers.authorization;
+          const apiKeyHeader = req.headers['x-api-key'];
+          const queryApiKey = req.query.api_key;
+
+          const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
+            (typeof apiKeyHeader === 'string' ? apiKeyHeader : null) ||
+            (typeof queryApiKey === 'string' ? queryApiKey : null);
+
+          if (!apiKey) {
+            res.status(401).json({
+              error: 'Authentication required',
+              message: 'API key must be provided via Authorization header, X-API-Key header, or api_key query parameter'
+            });
+            return;
+          }
+
+          // Validate API key
+          const config = getAuthConfig();
+          let user = null;
+
+          if (config.ownerKeys.includes(apiKey)) {
+            user = {
+              id: `owner-${apiKey.slice(-8)}`,
+              role: 'owner',
+              permissions: ['all'],
+              instanceId: config.instanceId,
+              apiKey
+            };
+          } else if (config.adminKeys.includes(apiKey)) {
+            user = {
+              id: `admin-${apiKey.slice(-8)}`,
+              role: 'admin',
+              permissions: ['read', 'write'],
+              instanceId: config.instanceId,
+              apiKey
+            };
+          }
+
+          if (!user) {
+            res.status(401).json({
+              error: 'Invalid API key',
+              message: 'The provided API key is not valid'
+            });
+            return;
+          }
+
+          res.json({
+            authenticated: true,
+            user: {
+              id: user.id,
+              role: user.role,
+              permissions: user.permissions,
+              instanceId: user.instanceId
+            }
+          });
+        } catch (error) {
+          logger.error('Auth status error:', error);
+          res.status(500).json({
+            error: 'Authentication failed',
+            message: 'An error occurred during authentication'
+          });
+        }
+      },
+    },
+    // Get current user info - requires valid API key
+    {
+      name: 'auth-me',
+      path: '/api/auth/me',
+      type: 'GET',
+      handler: async (req: any, res: any, runtime: IAgentRuntime) => {
+        try {
+          // Extract and validate API key
+          const authHeader = req.headers.authorization;
+          const apiKeyHeader = req.headers['x-api-key'];
+          const queryApiKey = req.query.api_key;
+
+          const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
+            (typeof apiKeyHeader === 'string' ? apiKeyHeader : null) ||
+            (typeof queryApiKey === 'string' ? queryApiKey : null);
+
+          if (!apiKey) {
+            res.status(401).json({
+              error: 'Authentication required',
+              message: 'API key must be provided'
+            });
+            return;
+          }
+
+          const config = getAuthConfig();
+          let user = null;
+
+          if (config.ownerKeys.includes(apiKey)) {
+            user = {
+              id: `owner-${apiKey.slice(-8)}`,
+              role: 'owner',
+              permissions: ['all'],
+              instanceId: config.instanceId
+            };
+          } else if (config.adminKeys.includes(apiKey)) {
+            user = {
+              id: `admin-${apiKey.slice(-8)}`,
+              role: 'admin',
+              permissions: ['read', 'write'],
+              instanceId: config.instanceId
+            };
+          }
+
+          if (!user) {
+            res.status(401).json({
+              error: 'Invalid API key'
+            });
+            return;
+          }
+
+          const authService = runtime.getService('auth') as AuthService;
+          const sessions = authService?.getUserSessions(user.id) || [];
+
+          res.json({
+            user,
+            sessions: sessions.length,
+            lastActivity: sessions[0]?.lastActivity || new Date(),
+            instanceId: user.instanceId
+          });
+        } catch (error) {
+          logger.error('Auth me error:', error);
+          res.status(500).json({
+            error: 'Authentication failed'
+          });
+        }
+      },
+    },
+    // List agents - requires valid API key and read permissions
+    {
+      name: 'agents-list',
+      path: '/api/agents',
+      type: 'GET',
+      handler: async (req: any, res: any, runtime: IAgentRuntime) => {
+        try {
+          // Extract and validate API key
+          const authHeader = req.headers.authorization;
+          const apiKeyHeader = req.headers['x-api-key'];
+          const queryApiKey = req.query.api_key;
+
+          const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
+            (typeof apiKeyHeader === 'string' ? apiKeyHeader : null) ||
+            (typeof queryApiKey === 'string' ? queryApiKey : null);
+
+          if (!apiKey) {
+            res.status(401).json({
+              error: 'Authentication required',
+              message: 'API key must be provided to access agents'
+            });
+            return;
+          }
+
+          const config = getAuthConfig();
+          let user = null;
+
+          if (config.ownerKeys.includes(apiKey)) {
+            user = {
+              id: `owner-${apiKey.slice(-8)}`,
+              role: 'owner',
+              permissions: ['all'],
+              instanceId: config.instanceId
+            };
+          } else if (config.adminKeys.includes(apiKey)) {
+            user = {
+              id: `admin-${apiKey.slice(-8)}`,
+              role: 'admin',
+              permissions: ['read', 'write'],
+              instanceId: config.instanceId
+            };
+          }
+
+          if (!user) {
+            res.status(401).json({
+              error: 'Invalid API key',
+              message: 'The provided API key is not valid'
+            });
+            return;
+          }
+
+          logger.info(`Authenticated agents request from ${user.role}: ${user.id}`);
+
+          const authService = runtime.getService('auth') as AuthService;
+          const userAgentAccess = authService?.getUserAgentAccess(user.id) || [];
+
+          // For now, return basic info - you can integrate with actual agent storage later
+          res.json({
+            message: 'Agents endpoint - authentication successful',
+            authenticated: true,
+            user: {
+              id: user.id,
+              role: user.role,
+              instanceId: user.instanceId
+            },
+            agents: [],
+            total: 0,
+            userAccess: userAgentAccess.length,
+            timestamp: new Date().toISOString()
+          });
+        } catch (error) {
+          logger.error('Agents list error:', error);
+          res.status(500).json({
+            error: 'Failed to retrieve agents',
+            message: 'An error occurred while fetching agents'
+          });
+        }
+      },
+    },
+    // Grant agent access - requires owner role
+    {
+      name: 'grant-agent-access',
+      path: '/api/auth/agent-access',
+      type: 'POST',
+      handler: async (req: any, res: any, runtime: IAgentRuntime) => {
+        try {
+          // Extract and validate API key
+          const authHeader = req.headers.authorization;
+          const apiKeyHeader = req.headers['x-api-key'];
+
+          const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
+            (typeof apiKeyHeader === 'string' ? apiKeyHeader : null);
+
+          if (!apiKey) {
+            res.status(401).json({
+              error: 'Authentication required'
+            });
+            return;
+          }
+
+          const config = getAuthConfig();
+
+          // Only owner can grant access
+          if (!config.ownerKeys.includes(apiKey)) {
+            res.status(403).json({
+              error: 'Insufficient permissions',
+              message: 'Only owners can grant agent access'
+            });
+            return;
+          }
+
+          const user = {
+            id: `owner-${apiKey.slice(-8)}`,
+            role: 'owner',
+            instanceId: config.instanceId
+          };
+
+          const authService = runtime.getService('auth') as AuthService;
+
+          if (!authService) {
+            res.status(503).json({ error: 'Auth service not available' });
+            return;
+          }
+
+          const { userId, agentId, permissions, expiresAt } = req.body;
+
+          if (!userId || !agentId) {
+            res.status(400).json({
+              error: 'Missing required fields',
+              message: 'userId and agentId are required'
+            });
+            return;
+          }
+
+          await authService.grantAgentAccess(
+            userId,
+            agentId,
+            permissions || [],
+            expiresAt ? new Date(expiresAt) : undefined
+          );
+
+          res.json({
+            success: true,
+            message: 'Agent access granted',
+            userId,
+            agentId,
+            permissions: permissions || [],
+            grantedBy: user.id
+          });
+        } catch (error) {
+          logger.error('Failed to grant agent access:', error);
+          res.status(500).json({ error: 'Failed to grant access' });
+        }
       },
     },
   ],
@@ -247,7 +568,7 @@ const plugin: Plugin = {
       },
     ],
   },
-  services: [StarterService],
+  services: [StarterService, AuthService],
   actions: [helloWorldAction],
   providers: [helloWorldProvider],
 };
