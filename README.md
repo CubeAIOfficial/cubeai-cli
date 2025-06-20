@@ -1,110 +1,270 @@
-# Project Starter
+# CUBEAI-CLI
 
-This is the starter template for ElizaOS projects.
+Enhanced [ElizaOS](https://eliza.how/) CLI with multi-tenant authentication and API integration for the CUBEAI platform. Each Cube instance runs this CLI with its own isolated database and user management.
 
-## Features
+## 🎯 What is CUBEAI-CLI?
 
-- Pre-configured project structure for ElizaOS development
-- Comprehensive testing setup with component and e2e tests
-- Default character configuration with plugin integration
-- Example service, action, and provider implementations
-- TypeScript configuration for optimal developer experience
-- Built-in documentation and examples
+CUBEAI-CLI is an enhanced version of the ElizaOS framework that adds:
 
-## Getting Started
+- **Multi-tenant Authentication**: API key-based user access control
+- **RESTful API**: HTTP endpoints for agent management and interaction
+- **WebSocket Support**: Real-time communication with agents
+- **Isolated Databases**: Each instance has its own PostgreSQL + pgvector database
+- **User Management**: Integration with CUBEAI platform user system
+
+## ⚡ Built on ElizaOS
+
+Inherits all [ElizaOS](https://eliza.how/) capabilities:
+
+- 🤖 **Agent Runtime**: Orchestrates agent behavior and state management
+- ⚡ **Actions**: Executable capabilities for agent interactions
+- 🔌 **Providers**: Real-time context for agent decisions
+- 📚 **Services**: Cross-platform communication (Discord, Twitter, Telegram)
+- 💾 **Vector Database**: Memories, relationships, and semantic search
+- 🧠 **Knowledge System**: RAG for document processing
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 18+ and **Bun**
+- **PostgreSQL** with **pgvector** extension
+- **ElizaOS CLI**: `npm install -g @elizaos/cli`
+
+### Development Setup
 
 ```bash
-# Clone the starter project
-npx elizaos create my-project
-
-# Navigate to the project directory
-cd my-project
-
 # Install dependencies
-npm install
+bun install
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your database and API configurations
 
 # Start development server
-npm run dev
+bun run dev
+
+# The CLI will be available at:
+# - HTTP API: http://localhost:3001
+# - WebSocket: ws://localhost:3001
 ```
 
-## Development
+### Environment Variables
+
+```env
+# Database Configuration
+POSTGRES_URL=postgresql://user:password@localhost:5432/cubeai-cli-db
+
+# Authentication
+OWNER_API_KEYS=your_owner_api_key_here
+ADMIN_API_KEYS=your_admin_api_key_here
+
+# AI Models
+USE_LOCAL_AI=true
+OLLAMA_API_ENDPOINT=http://localhost:11434/api
+OLLAMA_SMALL_MODEL=gemma2:2b
+OLLAMA_MEDIUM_MODEL=gemma2:9b
+OLLAMA_LARGE_MODEL=llama3.1:8b
+
+# Server Configuration
+SERVER_PORT=3001
+LOG_LEVEL=debug
+```
+
+## 🔑 Authentication
+
+CUBEAI-CLI uses API key-based authentication with two levels:
+
+### Owner API Keys
+
+- Full access to all agents and operations
+- Can create, modify, and delete any agent
+- Access to admin endpoints
+
+### Admin API Keys
+
+- Limited administrative access
+- Can manage specific agents
+- Read-only access to system information
+
+### Usage
 
 ```bash
-# Start development server
-npm run dev
-
-# Build the project
-npm run build
-
-# Test the project
-npm run test
+# Include API key in requests
+curl -H "Authorization: Bearer your_api_key_here" \
+     http://localhost:3001/api/agents
 ```
 
-## Testing
+## 📡 API Endpoints
 
-ElizaOS provides a comprehensive testing structure for projects:
+### Agent Management
+
+```http
+GET    /api/agents                    # List all agents
+POST   /api/agents                    # Create new agent
+GET    /api/agents/:id                # Get agent details
+PUT    /api/agents/:id                # Update agent
+DELETE /api/agents/:id                # Delete agent
+```
+
+### Conversations
+
+```http
+GET    /api/agents/:id/conversations  # Get conversation history
+POST   /api/agents/:id/chat           # Send message to agent
+GET    /api/agents/:id/memory         # Get agent memories
+```
+
+### System
+
+```http
+GET    /api/health                    # Health check
+GET    /api/status                    # System status
+GET    /api/models                    # Available AI models
+```
+
+## 🔌 WebSocket Interface
+
+Real-time communication with agents:
+
+```javascript
+const ws = new WebSocket("ws://localhost:3001");
+
+// Send message to agent
+ws.send(
+  JSON.stringify({
+    type: "chat",
+    agentId: "agent-uuid-here",
+    message: "Hello, agent!",
+    userId: "user-uuid-here",
+  })
+);
+
+// Receive agent responses
+ws.onmessage = (event) => {
+  const response = JSON.parse(event.data);
+  console.log("Agent response:", response);
+};
+```
+
+## 🛠️ Development
+
+### Project Structure
+
+```
+src/
+├── index.ts              # Main entry point and server setup
+├── plugin.ts             # CUBEAI plugin with auth middleware
+├── auth-plugin.ts        # Authentication system
+├── middleware/
+│   └── auth.ts           # API key validation middleware
+└── __tests__/            # Unit and integration tests
+```
+
+### Adding Custom Features
+
+1. **Create new Actions**:
+
+```typescript
+// src/actions/customAction.ts
+export const customAction: Action = {
+  name: "CUSTOM_ACTION",
+  similes: ["custom", "do_something"],
+  description: "Performs a custom operation",
+  handler: async (runtime, message, state) => {
+    // Your action logic here
+    return true;
+  },
+};
+```
+
+2. **Add new Providers**:
+
+```typescript
+// src/providers/customProvider.ts
+export const customProvider: Provider = {
+  get: async (runtime, message) => {
+    return "Custom context information";
+  },
+};
+```
+
+3. **Register in plugin**:
+
+```typescript
+// src/plugin.ts
+export const cubeaiPlugin: Plugin = {
+  name: "cubeai",
+  actions: [customAction],
+  providers: [customProvider],
+  // ...
+};
+```
+
+## 🧪 Testing
+
+### Unit Tests
+
+```bash
+# Run component tests
+elizaos test
+
+# Run specific test file
+elizaos test --name "auth"
+```
+
+### Integration Tests
+
+```bash
+# Run E2E tests with live runtime
+elizaos test --e2e
+```
 
 ### Test Structure
 
-- **Component Tests** (`__tests__/` directory):
+- `__tests__/` - Unit and integration tests
+- `e2e/` - End-to-end tests with full runtime
+- `__tests__/utils/` - Test utilities and helpers
 
-  - **Unit Tests**: Test individual functions and components in isolation
-  - **Integration Tests**: Test how components work together
-  - Run with: `npm run test:component`
+## 🔄 Multi-Tenant Isolation
 
-- **End-to-End Tests** (`e2e/` directory):
+Each CUBEAI-CLI instance provides complete isolation:
 
-  - Test the project within a full ElizaOS runtime
-  - Run with: `npm run test:e2e`
+- **Database**: Separate PostgreSQL database per cube
+- **Memory**: Isolated agent memories and conversations
+- **Authentication**: Unique API keys per cube instance
+- **Resources**: Dedicated compute and storage allocation
+- **Networking**: Isolated network access and routing
 
-- **Running All Tests**:
-  - `npm run test` runs both component and e2e tests
+## 🐳 Docker Deployment
 
-### Writing Tests
-
-Component tests use Vitest:
-
-```typescript
-// Unit test example (__tests__/config.test.ts)
-describe('Configuration', () => {
-  it('should load configuration correctly', () => {
-    expect(config.debug).toBeDefined();
-  });
-});
-
-// Integration test example (__tests__/integration.test.ts)
-describe('Integration: Plugin with Character', () => {
-  it('should initialize character with plugins', async () => {
-    // Test interactions between components
-  });
-});
+```dockerfile
+# Built for Docker deployment
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+EXPOSE 3001
+CMD ["npm", "start"]
 ```
 
-E2E tests use ElizaOS test interface:
+## 📚 Integration with CUBEAI Platform
 
-```typescript
-// E2E test example (e2e/project.test.ts)
-export class ProjectTestSuite implements TestSuite {
-  name = 'project_test_suite';
-  tests = [
-    {
-      name: 'project_initialization',
-      fn: async (runtime) => {
-        // Test project in a real runtime
-      },
-    },
-  ];
-}
+CUBEAI-CLI integrates with the main platform through:
 
-export default new ProjectTestSuite();
-```
+- **User Database**: Validates users against platform database
+- **Subscription Management**: Enforces limits based on user plans
+- **Instance Metadata**: Reports status back to platform
+- **Dynamic Provisioning**: Receives configuration from deployment system
 
-The test utilities in `__tests__/utils/` provide helper functions to simplify writing tests.
+## 🔗 Related Documentation
 
-## Configuration
+- **[ElizaOS Documentation](https://eliza.how/)** - Core framework docs
+- **[CUBEAI Platform](../README.md)** - Main platform overview
+- **[CUBEAI Client](../cubeai-client/README.md)** - Web application docs
 
-Customize your project by modifying:
+---
 
-- `src/index.ts` - Main entry point
-- `src/character.ts` - Character definition
-- `src/plugin.ts` - Plugin configuration
+**CUBEAI-CLI**: Your personalized ElizaOS instance in the cloud! 🧊⚡
