@@ -382,9 +382,9 @@ const plugin: Plugin = {
         }
       },
     },
-    // List agents - requires valid API key and read permissions
+    // Proxy route for agents list - authenticates then forwards to ElizaOS default
     {
-      name: 'agents-list',
+      name: 'agents-proxy',
       path: '/api/agents',
       type: 'GET',
       handler: async (req: any, res: any, runtime: IAgentRuntime) => {
@@ -435,25 +435,32 @@ const plugin: Plugin = {
 
           logger.info(`Authenticated agents request from ${user.role}: ${user.id}`);
 
-          const authService = runtime.getService('auth') as AuthService;
-          const userAgentAccess = authService?.getUserAgentAccess(user.id) || [];
+          // Get actual agents from the AgentServer (ElizaOS built-in way)
+          const agentServer = (globalThis as any).agentServer;
+          let agentsData = [];
 
-          // For now, return basic info - you can integrate with actual agent storage later
+          if (agentServer && agentServer.agents) {
+            // Convert the agents Map to an array (ElizaOS format)
+            agentsData = Array.from(agentServer.agents.values()).map((agent: any) => ({
+              id: agent.agentId || agent.id,
+              name: agent.character?.name || 'Unnamed Agent',
+              status: 'running', // ElizaOS uses 'running' status
+              character: agent.character || {},
+              agentId: agent.agentId || agent.id,
+              userId: agent.character?.userId || null,
+              roomId: agent.character?.roomId || null
+            }));
+          }
+
+          // Return in ElizaOS default format
           res.json({
-            message: 'Agents endpoint - authentication successful',
-            authenticated: true,
-            user: {
-              id: user.id,
-              role: user.role,
-              instanceId: user.instanceId
-            },
-            agents: [],
-            total: 0,
-            userAccess: userAgentAccess.length,
-            timestamp: new Date().toISOString()
+            data: {
+              agents: agentsData
+            }
           });
+
         } catch (error) {
-          logger.error('Agents list error:', error);
+          logger.error('Agents proxy error:', error);
           res.status(500).json({
             error: 'Failed to retrieve agents',
             message: 'An error occurred while fetching agents'
