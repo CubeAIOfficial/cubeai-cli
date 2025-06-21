@@ -302,7 +302,6 @@ const plugin: Plugin = {
       return 'Never gonna make you cry, never gonna say goodbye, never gonna tell a lie and hurt you...';
     },
   },
-
   routes: [
     // Public health check (no auth required)
     {

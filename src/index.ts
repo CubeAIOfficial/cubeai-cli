@@ -31,8 +31,8 @@ export const character: Character = {
       OLLAMA_LARGE_MODEL: process.env.OLLAMA_LARGE_MODEL || 'gemma3:1b',
       OLLAMA_EMBEDDING_MODEL: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text',
       USE_LOCAL_AI: process.env.USE_LOCAL_AI || 'true',
-      POSTGRES_URL: process.env.POSTGRES_URL || 'postgresql://postgres:password@cubeai-cli-db:5434/cubeai-cli-db',
-      OLLAMA_API_ENDPOINT: process.env.OLLAMA_API_ENDPOINT || 'http://ollama:11434/api'
+      POSTGRES_URL: process.env.POSTGRES_URL,
+      OLLAMA_API_ENDPOINT: process.env.OLLAMA_API_ENDPOINT
     },
   },
   system:
