@@ -25,3 +25,10 @@ logs
 npm-debug.log
 coverage
 *.tsbuildinfo
+
+# New rules from the code block
+README.md
+*.test.ts
+__tests__
+e2e
+.nyc_output

@@ -1,8 +1,9 @@
-FROM node:23.3.0-slim
+# Multi-stage build for better caching
+FROM node:23.3.0-slim as base
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (this layer rarely changes)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -18,13 +19,23 @@ RUN npm install -g bun@1.2.5
 # Create symbolic link for python
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# Copy only package files first for better cache
+# Dependencies stage - only rebuilds when package files change
+FROM base as deps
 COPY package.json bun.lockb* package-lock.json* ./
-
-# Install dependencies (this includes @elizaos/cli as a dependency)
 RUN bun install
 
-# Copy the rest of the code
+# Build stage - rebuilds when source code changes
+FROM deps as builder
+COPY scripts/source-hash.sh ./scripts/
+COPY src/ ./src/
+COPY tsconfig.json* tsup.config.ts* ./
+# Generate source hash to invalidate cache on source changes
+RUN ./scripts/source-hash.sh
+RUN bun run build
+
+# Runtime stage - final image
+FROM deps as runtime
+COPY --from=builder /app/dist ./dist
 COPY . .
 
 # Expose port for API server
@@ -33,5 +44,5 @@ EXPOSE 3001
 # Set NODE_ENV to development
 ENV NODE_ENV=development
 
-# Use dev script for development mode with bun
-CMD ["bun", "run", "dev"]
+# Use the built version
+CMD ["elizaos", "start"]
