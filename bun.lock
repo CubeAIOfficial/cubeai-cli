@@ -4,12 +4,12 @@
     "": {
       "name": "@elizaos/project-starter",
       "dependencies": {
-        "@elizaos/cli": "^1.0.11",
-        "@elizaos/core": "^1.0.11",
-        "@elizaos/plugin-bootstrap": "^1.0.11",
+        "@elizaos/cli": "^1.0.10",
+        "@elizaos/core": "^1.0.10",
+        "@elizaos/plugin-bootstrap": "^1.0.10",
         "@elizaos/plugin-discord": "1.0.10",
         "@elizaos/plugin-ollama": "1.0.3",
-        "@elizaos/plugin-sql": "^1.0.11",
+        "@elizaos/plugin-sql": "^1.0.10",
         "cors": "^2.8.5",
         "express": "^4.19.2",
         "multer": "^1.4.5-lts.1",
