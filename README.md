@@ -1,6 +1,6 @@
-# CUBEAI-CLI
+# CUBEAI-CLI - Enterprise ElizaOS Runtime
 
-Enhanced [ElizaOS](https://eliza.how/) CLI with multi-tenant authentication and API integration for the CUBEAI platform. Each Cube instance runs this CLI with its own isolated database and user management.
+Enterprise-grade enhanced [ElizaOS](https://eliza.how/) CLI with sophisticated multi-tenant authentication, comprehensive API integration, and advanced isolation features designed for the CUBEAI platform. Each Cube instance operates this enhanced CLI within a completely isolated containerized environment featuring dedicated PostgreSQL databases, unique API endpoints, real-time WebSocket communication, and enterprise-level security controls.
 
 ## 🎯 What is CUBEAI-CLI?
 

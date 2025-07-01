@@ -1,0 +1,28 @@
+FROM node:18-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN npm install -g bun && bun install --frozen-lockfile --production
+
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN npm install -g bun && bun install --frozen-lockfile
+COPY . .
+ENV NODE_ENV=production
+RUN bun run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN addgroup --system --gid 1001 appuser
+RUN adduser --system --uid 1001 appuser
+
+COPY --from=builder --chown=appuser:appuser /app/dist ./dist
+COPY --from=builder --chown=appuser:appuser /app/package.json ./
+COPY --from=deps --chown=appuser:appuser /app/node_modules ./node_modules
+
+USER appuser
+EXPOSE 3001
+ENV PORT 3001
+
+CMD ["bun", "run", "start:prod"]
