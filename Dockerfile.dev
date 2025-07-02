@@ -1,0 +1,42 @@
+# Development Dockerfile for CUBEAI CLI
+FROM node:23.3.0-slim as base
+
+WORKDIR /app
+
+# Install system dependencies for development
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    python3 \
+    vim \
+    less \
+    procps && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install bun globally
+RUN npm install -g bun@1.2.5
+
+# Create symbolic link for python
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Copy package files first for better caching
+COPY package.json bun.lockb* package-lock.json* ./
+
+# Install all dependencies (including dev dependencies)
+RUN bun install
+
+# Copy source code
+COPY . .
+
+# Set development environment
+ENV NODE_ENV=development
+ENV PORT=3001
+
+# Expose port for development server
+EXPOSE 3001
+
+# Use development command with hot reloading
+CMD ["bun", "run", "dev"] 
