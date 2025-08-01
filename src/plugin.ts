@@ -459,28 +459,36 @@ const plugin: Plugin = {
               maxWorkingMemoryEntries: 50,
               // Add default secrets (will be injected by container manager)
               secrets: {
-                OPENAI_API_KEY: "{{CLI_API_KEY}}", // Will be replaced by container manager
-                OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
-                OPENAI_LARGE_MODEL: "deepseek/deepseek-chat-v3-0324:free",
-                OPENAI_MEDIUM_MODEL: "deepseek/deepseek-chat-v3-0324:free",
-                OPENAI_SMALL_MODEL: "deepseek/deepseek-chat-v3-0324:free",
-                OLLAMA_SMALL_MODEL: "gemma3:1b",
-                OLLAMA_MEDIUM_MODEL: "gemma3:1b",
-                OLLAMA_LARGE_MODEL: "gemma3:1b",
-                OLLAMA_EMBEDDING_MODEL: "nomic-embed-text",
-                USE_LOCAL_AI: "false",
+                OPENAI_API_KEY: process.env.CLI_API_KEY || "{{CLI_API_KEY}}",
+                OPENAI_BASE_URL:
+                  process.env.OPENAI_BASE_URL || "https://openrouter.ai/api/v1",
+                OPENAI_LARGE_MODEL:
+                  process.env.OPENAI_LARGE_MODEL ||
+                  "deepseek/deepseek-chat-v3-0324:free",
+                OPENAI_MEDIUM_MODEL:
+                  process.env.OPENAI_MEDIUM_MODEL ||
+                  "deepseek/deepseek-chat-v3-0324:free",
+                OPENAI_SMALL_MODEL:
+                  process.env.OPENAI_SMALL_MODEL ||
+                  "deepseek/deepseek-chat-v3-0324:free",
+                // Fallback to Ollama if local AI is preferred
+                OLLAMA_SMALL_MODEL:
+                  process.env.OLLAMA_SMALL_MODEL || "gemma3:1b",
+                OLLAMA_MEDIUM_MODEL:
+                  process.env.OLLAMA_MEDIUM_MODEL || "gemma3:1b",
+                OLLAMA_LARGE_MODEL:
+                  process.env.OLLAMA_LARGE_MODEL || "gemma3:1b",
+                OLLAMA_EMBEDDING_MODEL:
+                  process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text",
+                USE_LOCAL_AI: process.env.USE_LOCAL_AI || "false",
                 POSTGRES_URL: process.env.POSTGRES_URL,
                 OLLAMA_API_ENDPOINT: process.env.OLLAMA_API_ENDPOINT,
+                // Merge any additional secrets from characterJson
+                ...(characterJson.settings?.secrets || {}),
               },
+              // Merge any additional settings from characterJson
               ...characterJson.settings,
             },
-            // Add default secrets if not provided
-            secrets:
-              characterJson.secrets ||
-              {
-                // Add any required API keys or secrets here
-                // These will be loaded from environment variables at runtime
-              },
             // Add default plugins if not provided
             plugins: characterJson.plugins || [
               "@elizaos/plugin-sql",
