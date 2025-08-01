@@ -27,7 +27,7 @@ export const character: Character = {
   settings: {
     secrets: {
       // API Key will be injected by container manager during instance creation
-      OPENAI_API_KEY: process.env.CLI_API_KEY || "{{CLI_API_KEY}}",
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || "{{OPENAI_API_KEY}}",
       OPENAI_BASE_URL:
         process.env.OPENAI_BASE_URL || "https://openrouter.ai/api/v1",
       OPENAI_LARGE_MODEL:
