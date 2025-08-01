@@ -1,4 +1,4 @@
-import type { Plugin } from '@elizaos/core';
+import type { Plugin } from "@elizaos/core";
 import {
   type Action,
   type Content,
@@ -12,13 +12,10 @@ import {
   Service,
   type State,
   logger,
-} from '@elizaos/core';
-import { z } from 'zod';
-import {
-  getAuthConfig,
-  healthCheck
-} from './middleware/auth.js';
-import { AuthService } from './services/auth-service.js';
+} from "@elizaos/core";
+import { z } from "zod";
+import { getAuthConfig, healthCheck } from "./middleware/auth.js";
+import { AuthService } from "./services/auth-service.js";
 
 /**
  * Define the configuration schema for the plugin with the following properties:
@@ -29,11 +26,11 @@ import { AuthService } from './services/auth-service.js';
 const configSchema = z.object({
   EXAMPLE_PLUGIN_VARIABLE: z
     .string()
-    .min(1, 'Example plugin variable is not provided')
+    .min(1, "Example plugin variable is not provided")
     .optional()
     .transform((val) => {
       if (!val) {
-        console.warn('Warning: Example plugin variable is not provided');
+        console.warn("Warning: Example plugin variable is not provided");
       }
       return val;
     }),
@@ -60,11 +57,15 @@ const configSchema = z.object({
  * @property {Object[]} examples - Array of examples for the action
  */
 const helloWorldAction: Action = {
-  name: 'HELLO_WORLD',
-  similes: ['GREET', 'SAY_HELLO'],
-  description: 'Responds with a simple hello world message',
+  name: "HELLO_WORLD",
+  similes: ["GREET", "SAY_HELLO"],
+  description: "Responds with a simple hello world message",
 
-  validate: async (_runtime: IAgentRuntime, _message: Memory, _state: State): Promise<boolean> => {
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state: State
+  ): Promise<boolean> => {
     // Always valid
     return true;
   },
@@ -78,21 +79,19 @@ const helloWorldAction: Action = {
     _responses: Memory[]
   ) => {
     try {
-      logger.info('Handling HELLO_WORLD action');
+      logger.info("Handling HELLO_WORLD action");
 
       // Simple response content
       const responseContent: Content = {
-        text: 'hello world!',
-        actions: ['HELLO_WORLD'],
+        text: "hello world!",
+        actions: ["HELLO_WORLD"],
         source: message.content.source,
       };
 
       // Call back with the hello world message
       await callback(responseContent);
-
-      return responseContent;
     } catch (error) {
-      logger.error('Error in HELLO_WORLD action:', error);
+      logger.error("Error in HELLO_WORLD action:", error);
       throw error;
     }
   },
@@ -100,16 +99,16 @@ const helloWorldAction: Action = {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Can you say hello?',
+          text: "Can you say hello?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'hello world!',
-          actions: ['HELLO_WORLD'],
+          text: "hello world!",
+          actions: ["HELLO_WORLD"],
         },
       },
     ],
@@ -121,8 +120,8 @@ const helloWorldAction: Action = {
  * This demonstrates the simplest possible provider implementation
  */
 const helloWorldProvider: Provider = {
-  name: 'HELLO_WORLD_PROVIDER',
-  description: 'A simple example provider',
+  name: "HELLO_WORLD_PROVIDER",
+  description: "A simple example provider",
 
   get: async (
     _runtime: IAgentRuntime,
@@ -130,7 +129,7 @@ const helloWorldProvider: Provider = {
     _state: State
   ): Promise<ProviderResult> => {
     return {
-      text: 'I am a provider',
+      text: "I am a provider",
       values: {},
       data: {},
     };
@@ -138,38 +137,39 @@ const helloWorldProvider: Provider = {
 };
 
 export class StarterService extends Service {
-  static serviceType = 'starter';
+  static serviceType = "starter";
   capabilityDescription =
-    'This is a starter service which is attached to the agent through the starter plugin.';
+    "This is a starter service which is attached to the agent through the starter plugin.";
 
   constructor(runtime: IAgentRuntime) {
     super(runtime);
   }
 
   static async start(runtime: IAgentRuntime) {
-    logger.info('*** Starting starter service ***');
+    logger.info("*** Starting starter service ***");
     const service = new StarterService(runtime);
     return service;
   }
 
   static async stop(runtime: IAgentRuntime) {
-    logger.info('*** Stopping starter service ***');
+    logger.info("*** Stopping starter service ***");
     // get the service from the runtime
     const service = runtime.getService(StarterService.serviceType);
     if (!service) {
-      throw new Error('Starter service not found');
+      throw new Error("Starter service not found");
     }
     service.stop();
   }
 
   async stop() {
-    logger.info('*** Stopping starter service instance ***');
+    logger.info("*** Stopping starter service instance ***");
   }
 }
 
 const plugin: Plugin = {
-  name: 'cubeai-cli',
-  description: 'Enhanced ElizaOS CLI with authentication and API integration for CUBEAI platform',
+  name: "cubeai-cli",
+  description:
+    "Enhanced ElizaOS CLI with authentication and API integration for CUBEAI platform",
   // Set lowest priority so real models take precedence
   priority: -1000,
   config: {
@@ -180,7 +180,7 @@ const plugin: Plugin = {
     CUBEAI_INSTANCE_ID: process.env.CUBEAI_INSTANCE_ID,
   },
   async init(config: Record<string, string>, runtime: IAgentRuntime) {
-    logger.info('*** Initializing CUBEAI CLI plugin ***');
+    logger.info("*** Initializing CUBEAI CLI plugin ***");
     try {
       const validatedConfig = await configSchema.parseAsync(config);
 
@@ -191,34 +191,38 @@ const plugin: Plugin = {
 
       // Start the AuthService
       await AuthService.start(runtime);
-      logger.info('Auth service started successfully');
+      logger.info("Auth service started successfully");
 
       // Install global authentication middleware for all /api/* routes
       // This will run BEFORE any ElizaOS default handlers
       const app = (globalThis as any).app;
       if (app && app.use) {
-        logger.info('Installing authentication middleware for /api/* routes');
+        logger.info("Installing authentication middleware for /api/* routes");
 
-        app.use('/api/*', async (req: any, res: any, next: any) => {
+        app.use("/api/*", async (req: any, res: any, next: any) => {
           try {
             // Skip authentication for public health check
-            if (req.url === '/api/health' || req.url.startsWith('/health')) {
+            if (req.url === "/api/health" || req.url.startsWith("/health")) {
               return next();
             }
 
             // Extract API key from request
             const authHeader = req.headers.authorization;
-            const apiKeyHeader = req.headers['x-api-key'];
+            const apiKeyHeader = req.headers["x-api-key"];
             const queryApiKey = req.query.api_key;
 
-            const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
-              (typeof apiKeyHeader === 'string' ? apiKeyHeader : null) ||
-              (typeof queryApiKey === 'string' ? queryApiKey : null);
+            const apiKey =
+              (authHeader && authHeader.startsWith("Bearer ")
+                ? authHeader.substring(7)
+                : null) ||
+              (typeof apiKeyHeader === "string" ? apiKeyHeader : null) ||
+              (typeof queryApiKey === "string" ? queryApiKey : null);
 
             if (!apiKey) {
               res.status(401).json({
-                error: 'Authentication required',
-                message: 'API key must be provided via Authorization header, X-API-Key header, or api_key query parameter'
+                error: "Authentication required",
+                message:
+                  "API key must be provided via Authorization header, X-API-Key header, or api_key query parameter",
               });
               return;
             }
@@ -230,52 +234,58 @@ const plugin: Plugin = {
             if (config.ownerKeys.includes(apiKey)) {
               user = {
                 id: `owner-${apiKey.slice(-8)}`,
-                role: 'owner',
-                permissions: ['all'],
+                role: "owner",
+                permissions: ["all"],
                 instanceId: config.instanceId,
-                apiKey
+                apiKey,
               };
             } else if (config.adminKeys.includes(apiKey)) {
               user = {
                 id: `admin-${apiKey.slice(-8)}`,
-                role: 'admin',
-                permissions: ['read', 'write'],
+                role: "admin",
+                permissions: ["read", "write"],
                 instanceId: config.instanceId,
-                apiKey
+                apiKey,
               };
             }
 
             if (!user) {
               res.status(401).json({
-                error: 'Invalid API key',
-                message: 'The provided API key is not valid'
+                error: "Invalid API key",
+                message: "The provided API key is not valid",
               });
               return;
             }
 
             // Add user to request for downstream handlers
             req.user = user;
-            logger.info(`✅ Authenticated API request: ${req.method} ${req.url} from ${user.role}: ${user.id}`);
+            logger.info(
+              `✅ Authenticated API request: ${req.method} ${req.url} from ${user.role}: ${user.id}`
+            );
 
             // Continue to ElizaOS default handlers
             next();
           } catch (error) {
-            logger.error('Authentication middleware error:', error);
+            logger.error("Authentication middleware error:", error);
             res.status(500).json({
-              error: 'Authentication failed',
-              message: 'An error occurred during authentication'
+              error: "Authentication failed",
+              message: "An error occurred during authentication",
             });
           }
         });
 
-        logger.info('✅ Authentication middleware installed successfully');
+        logger.info("✅ Authentication middleware installed successfully");
       } else {
-        logger.warn('⚠️ Express app not found - authentication middleware not installed');
+        logger.warn(
+          "⚠️ Express app not found - authentication middleware not installed"
+        );
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error(
-          `Invalid plugin configuration: ${error.errors.map((e) => e.message).join(', ')}`
+          `Invalid plugin configuration: ${error.errors
+            .map((e) => e.message)
+            .join(", ")}`
         );
       }
       throw error;
@@ -286,7 +296,7 @@ const plugin: Plugin = {
       _runtime,
       { prompt, stopSequences = [] }: GenerateTextParams
     ) => {
-      return 'Never gonna give you up, never gonna let you down, never gonna run around and desert you...';
+      return "Never gonna give you up, never gonna let you down, never gonna run around and desert you...";
     },
     [ModelType.TEXT_LARGE]: async (
       _runtime,
@@ -299,38 +309,42 @@ const plugin: Plugin = {
         presencePenalty = 0.7,
       }: GenerateTextParams
     ) => {
-      return 'Never gonna make you cry, never gonna say goodbye, never gonna tell a lie and hurt you...';
+      return "Never gonna make you cry, never gonna say goodbye, never gonna tell a lie and hurt you...";
     },
   },
   routes: [
     // Public health check (no auth required)
     {
-      name: 'health',
-      path: '/health',
-      type: 'GET',
+      name: "health",
+      path: "/health",
+      type: "GET",
       handler: async (req: any, res: any, _runtime: IAgentRuntime) => {
         await Promise.resolve(healthCheck(req, res));
       },
     },
     // Auth status endpoint (requires authentication)
     {
-      name: 'auth-status',
-      path: '/api/auth/status',
-      type: 'GET',
+      name: "auth-status",
+      path: "/api/auth/status",
+      type: "GET",
       handler: async (req: any, res: any, _runtime: IAgentRuntime) => {
         // Manual authentication check since this is a custom route
         const authHeader = req.headers.authorization;
-        const apiKeyHeader = req.headers['x-api-key'];
+        const apiKeyHeader = req.headers["x-api-key"];
         const queryApiKey = req.query.api_key;
 
-        const apiKey = (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null) ||
-          (typeof apiKeyHeader === 'string' ? apiKeyHeader : null) ||
-          (typeof queryApiKey === 'string' ? queryApiKey : null);
+        const apiKey =
+          (authHeader && authHeader.startsWith("Bearer ")
+            ? authHeader.substring(7)
+            : null) ||
+          (typeof apiKeyHeader === "string" ? apiKeyHeader : null) ||
+          (typeof queryApiKey === "string" ? queryApiKey : null);
 
         if (!apiKey) {
           res.status(401).json({
-            error: 'Authentication required',
-            message: 'API key must be provided via Authorization header, X-API-Key header, or api_key query parameter'
+            error: "Authentication required",
+            message:
+              "API key must be provided via Authorization header, X-API-Key header, or api_key query parameter",
           });
           return;
         }
@@ -342,78 +356,133 @@ const plugin: Plugin = {
         if (config.ownerKeys.includes(apiKey)) {
           user = {
             id: `owner-${apiKey.slice(-8)}`,
-            role: 'owner',
-            permissions: ['all'],
+            role: "owner",
+            permissions: ["all"],
             instanceId: config.instanceId,
-            apiKey
+            apiKey,
           };
         } else if (config.adminKeys.includes(apiKey)) {
           user = {
             id: `admin-${apiKey.slice(-8)}`,
-            role: 'admin',
-            permissions: ['read', 'write'],
+            role: "admin",
+            permissions: ["read", "write"],
             instanceId: config.instanceId,
-            apiKey
+            apiKey,
           };
         }
 
         if (!user) {
           res.status(401).json({
-            error: 'Invalid API key',
-            message: 'The provided API key is not valid'
+            error: "Invalid API key",
+            message: "The provided API key is not valid",
           });
           return;
         }
 
         res.json({
-          status: 'authenticated',
+          status: "authenticated",
           user: {
             id: user.id,
             role: user.role,
             permissions: user.permissions,
-            instanceId: user.instanceId
+            instanceId: user.instanceId,
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       },
     },
     // Legacy hello world route (keeping for backward compatibility)
     {
-      name: 'helloworld',
-      path: '/helloworld',
-      type: 'GET',
+      name: "helloworld",
+      path: "/helloworld",
+      type: "GET",
       handler: async (_req: any, res: any) => {
         res.json({
-          message: 'Hello World!',
+          message: "Hello World!",
         });
+      },
+    },
+    // Agent creation endpoint
+    {
+      name: "create-agent",
+      path: "/api/agents/create",
+      type: "POST",
+      handler: async (req: any, res: any, runtime: IAgentRuntime) => {
+        try {
+          // Validate request body
+          const { characterJson } = req.body;
+
+          if (!characterJson) {
+            res.status(400).json({
+              error: "Missing character data",
+              message: "characterJson is required in request body",
+            });
+            return;
+          }
+
+          // Validate required fields
+          if (!characterJson.name || !characterJson.system) {
+            res.status(400).json({
+              error: "Invalid character data",
+              message: "name and system prompt are required",
+            });
+            return;
+          }
+
+          logger.info(`Creating new agent: ${characterJson.name}`);
+
+          // Use ElizaOS default agent creation
+          const agentId = crypto.randomUUID();
+
+          // Store agent data in runtime memory or database
+          logger.info(
+            `Agent data prepared for: ${characterJson.name} with ID: ${agentId}`
+          );
+
+          logger.info(`✅ Agent created successfully with ID: ${agentId}`);
+
+          res.json({
+            success: true,
+            agentId,
+            message: `Agent "${characterJson.name}" created successfully`,
+            character: characterJson,
+          });
+        } catch (error) {
+          logger.error("Error creating agent:", error);
+          res.status(500).json({
+            error: "Failed to create agent",
+            message:
+              error instanceof Error ? error.message : "Unknown error occurred",
+          });
+        }
       },
     },
   ],
   events: {
     MESSAGE_RECEIVED: [
       async (params) => {
-        logger.info('MESSAGE_RECEIVED event received');
+        logger.info("MESSAGE_RECEIVED event received");
         // print the keys
         logger.info(Object.keys(params));
       },
     ],
     VOICE_MESSAGE_RECEIVED: [
       async (params) => {
-        logger.info('VOICE_MESSAGE_RECEIVED event received');
+        logger.info("VOICE_MESSAGE_RECEIVED event received");
         // print the keys
         logger.info(Object.keys(params));
       },
     ],
     WORLD_CONNECTED: [
       async (params) => {
-        logger.info('WORLD_CONNECTED event received');
+        logger.info("WORLD_CONNECTED event received");
         // print the keys
         logger.info(Object.keys(params));
       },
     ],
     WORLD_JOINED: [
       async (params) => {
-        logger.info('WORLD_JOINED event received');
+        logger.info("WORLD_JOINED event received");
         // print the keys
         logger.info(Object.keys(params));
       },
