@@ -1,6 +1,8 @@
 import type { Plugin } from "@elizaos/core";
 import {
   type Action,
+  type Agent,
+  AgentStatus,
   type Content,
   type GenerateTextParams,
   type HandlerCallback,
@@ -430,20 +432,93 @@ const plugin: Plugin = {
           }
 
           logger.info(`Creating new agent: ${characterJson.name}`);
-
-          // Use ElizaOS default agent creation
-          const agentId = crypto.randomUUID();
-
-          // Store agent data in runtime memory or database
           logger.info(
-            `Agent data prepared for: ${characterJson.name} with ID: ${agentId}`
+            `Agent settings: ${JSON.stringify(
+              characterJson.settings || {},
+              null,
+              2
+            )}`
           );
 
-          logger.info(`✅ Agent created successfully with ID: ${agentId}`);
+          // Create agent using ElizaOS runtime with default settings
+          const agentData: Partial<Agent> = {
+            ...characterJson,
+            // Add default settings if not provided
+            settings: {
+              // Default ElizaOS settings
+              temperature: characterJson.settings?.temperature || 0.7,
+              maxTokens: characterJson.settings?.maxTokens || 2048,
+              // Add default model settings
+              model: "gpt-4",
+              // Add default behavior settings
+              enableMemory: true,
+              enableActions: true,
+              enableProviders: true,
+              // Add default conversation settings
+              conversationLength: 32,
+              maxWorkingMemoryEntries: 50,
+              // Add default secrets (will be injected by container manager)
+              secrets: {
+                OPENAI_API_KEY: "{{CLI_API_KEY}}", // Will be replaced by container manager
+                OPENAI_BASE_URL: "https://openrouter.ai/api/v1",
+                OPENAI_LARGE_MODEL: "deepseek/deepseek-chat-v3-0324:free",
+                OPENAI_MEDIUM_MODEL: "deepseek/deepseek-chat-v3-0324:free",
+                OPENAI_SMALL_MODEL: "deepseek/deepseek-chat-v3-0324:free",
+                OLLAMA_SMALL_MODEL: "gemma3:1b",
+                OLLAMA_MEDIUM_MODEL: "gemma3:1b",
+                OLLAMA_LARGE_MODEL: "gemma3:1b",
+                OLLAMA_EMBEDDING_MODEL: "nomic-embed-text",
+                USE_LOCAL_AI: "false",
+                POSTGRES_URL: process.env.POSTGRES_URL,
+                OLLAMA_API_ENDPOINT: process.env.OLLAMA_API_ENDPOINT,
+              },
+              ...characterJson.settings,
+            },
+            // Add default secrets if not provided
+            secrets:
+              characterJson.secrets ||
+              {
+                // Add any required API keys or secrets here
+                // These will be loaded from environment variables at runtime
+              },
+            // Add default plugins if not provided
+            plugins: characterJson.plugins || [
+              "@elizaos/plugin-sql",
+              "@elizaos/plugin-bootstrap",
+              "@elizaos/plugin-openai",
+              "cubeai-cli",
+            ],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            enabled: true,
+            status: AgentStatus.ACTIVE,
+          };
+
+          const success = await runtime.createAgent(agentData);
+
+          if (!success) {
+            throw new Error(`Failed to create agent: ${characterJson.name}`);
+          }
+
+          // Get the created agent to return its ID
+          const agents = await runtime.getAgents();
+          const createdAgent = agents.find(
+            (agent) => agent.name === characterJson.name
+          );
+
+          if (!createdAgent) {
+            throw new Error(
+              `Agent created but not found in database: ${characterJson.name}`
+            );
+          }
+
+          logger.info(
+            `✅ Agent created successfully with ID: ${createdAgent.id}`
+          );
 
           res.json({
             success: true,
-            agentId,
+            agentId: createdAgent.id,
             message: `Agent "${characterJson.name}" created successfully`,
             character: characterJson,
           });
